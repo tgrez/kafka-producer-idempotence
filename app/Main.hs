@@ -1,6 +1,11 @@
 module Main where
 
-import Lib
+import           System.Environment   (getArgs)
+import           Lib
 
 main :: IO ()
-main = someFunc
+main = do
+  (brokerAddress:topic:iterStr:_) <- getArgs
+  let iterations = read iterStr :: Integer
+  executeProducer brokerAddress topic iterations
+

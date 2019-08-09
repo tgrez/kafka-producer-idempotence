@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4dcd37c161b8a4541bc79fe333b89ec70a2f81b6d8d69894e0de89efdf267c82
+-- hash: 272c843b8d499c2604eee4d2dad5f80bc39967c80bd21d4d57b83c22a5039fdf
 
 name:           idempotent-producer
 version:        0.1.0.0
@@ -35,6 +35,8 @@ library
   build-depends:
       base >=4.7 && <5
     , bytestring
+    , containers
+    , docker
     , hw-kafka-client
     , mtl
     , text
@@ -44,14 +46,15 @@ library
 executable idempotent-producer-exe
   main-is: Main.hs
   other-modules:
-      ConsumerMain
       Paths_idempotent_producer
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       base >=4.7 && <5
     , bytestring
+    , containers
+    , docker
     , hw-kafka-client
     , idempotent-producer
     , mtl
@@ -64,14 +67,18 @@ test-suite idempotent-producer-test
   main-is: Spec.hs
   other-modules:
       IdempotentProducerSpec
+      Kafka.Broker
       Paths_idempotent_producer
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       base >=4.7 && <5
     , bytestring
     , conduit
+    , containers
+    , docker
+    , exceptions
     , filepath
     , hatrace
     , hspec
@@ -80,5 +87,6 @@ test-suite idempotent-producer-test
     , mtl
     , stm
     , text
+    , unliftio-core
     , utf8-string
   default-language: Haskell2010

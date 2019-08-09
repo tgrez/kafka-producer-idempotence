@@ -25,6 +25,8 @@ dependencies:
 - text
 - utf8-string
 - mtl
+- docker
+- containers
 
 library:
   source-dirs: src
@@ -37,6 +39,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Wall
     dependencies:
     - idempotent-producer
 
@@ -48,6 +51,7 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Wall
     dependencies:
     - idempotent-producer
     - hspec
@@ -55,3 +59,5 @@ tests:
     - filepath
     - stm
     - hatrace
+    - exceptions
+    - unliftio-core
