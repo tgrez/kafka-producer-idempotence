@@ -13,22 +13,22 @@ import qualified Data.ByteString.UTF8 as BSU
 import           Kafka.Producer
 import qualified Data.Text            as T
 
-producerProps :: String -> ProducerProperties
-producerProps brokerAddress = brokersList [BrokerAddress $ T.pack brokerAddress]
+producerProps :: String -> Bool -> ProducerProperties
+producerProps brokerAddress enableIdempotence = brokersList [BrokerAddress $ T.pack brokerAddress]
              <> (extraProps $ M.fromList [ ("batch.num.messages", "1")
                                          , ("max.in.flight", "1") -- so only 1 msg is resend
---                                         , ("enable.idempotence", "true")
+                                         , ("enable.idempotence", T.toLower $ T.pack $ show enableIdempotence)
                                          ]
                 )
              <> logLevel KafkaLogErr
 
-executeProducer :: String -> String -> Integer -> IO ()
-executeProducer brokerAddress topic iterations  = do
+executeProducer :: String -> String -> Integer -> Bool -> IO ()
+executeProducer brokerAddress topic iterations enableIdempotence = do
     bracket mkProducer clProducer runHandler >>= \case
-      Right () -> putStrLn "    messages were sent to broker"
+      Right () -> putStrLn "messages were sent to broker"
       Left err -> putStrLn $ show err
     where
-      mkProducer = newProducer $ producerProps brokerAddress
+      mkProducer = newProducer $ producerProps brokerAddress enableIdempotence
       clProducer (Left _)     = return ()
       clProducer (Right prod) = closeProducer prod
       runHandler (Left err)   = return $ Left err

@@ -5,7 +5,8 @@ import           Lib
 
 main :: IO ()
 main = do
-  (brokerAddress:topic:iterStr:_) <- getArgs
+  (brokerAddress:topic:iterStr:enableIdempotenceStr:_) <- getArgs
   let iterations = read iterStr :: Integer
-  executeProducer brokerAddress topic iterations
+      enableIdempotence = read enableIdempotenceStr :: Bool
+  executeProducer brokerAddress topic iterations enableIdempotence
 

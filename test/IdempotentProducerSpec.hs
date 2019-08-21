@@ -12,14 +12,11 @@ import System.Posix.Types
 import System.Hatrace
 
 import Control.Monad.Reader
-import Control.Concurrent.STM.TVar
-import Control.Concurrent.STM
 import Control.Exception
 
-
-import GHC.IO.Exception
-
+import Data.IORef
 import Data.Monoid ((<>))
+import Data.Maybe (catMaybes)
 import qualified Data.Text as T
 import qualified Data.ByteString as B
 import Data.Conduit
@@ -31,32 +28,51 @@ import Kafka.Consumer
 
 brokerAddress :: String
 brokerAddress = "localhost:9092"
+
 kafkaTopic :: String
 kafkaTopic = "haskell-temp-test"
+
 messageCount :: Int
 messageCount = 5
 
 spec :: Spec
 spec = around_ withKafka $ do
-  describe "kafka producer" $ do
+  describe "kafka producer without idempotence" $ do
     it "sends duplicate messages on timeouts" $ do
-      execPath <- takeDirectory <$> getExecutablePath
-      let cmd = execPath </> "../idempotent-producer-exe/idempotent-producer-exe"
-      argv <- procToArgv cmd [brokerAddress, kafkaTopic, show messageCount]
-      counter <- newTVarIO (0 :: Int)
-      (exitCode, events) <- flip runReaderT counter $
-        sourceTraceForkExecvFullPathWithSink argv $
-          syscallExitDetailsOnlyConduit .|
-          changeSendmsgSyscallResult .|
-          CL.consume
-      msgs <- consumeMessages
-      print msgs
+      let enableIdempotence = False
+      msgs <- runProducerTestCase enableIdempotence
       msgs `shouldSatisfy` (\case
                                Right messages -> length messages == 7
                                Left _ -> False
                            )
-      exitCode `shouldBe` ExitSuccess
-      length events  `shouldSatisfy` (> 0)
+
+  describe "kafka producer with idempotence enabled" $ do
+    it "sends duplicates, but they are discarded on the broker" $ do
+      let enableIdempotence = True
+      msgs <- runProducerTestCase enableIdempotence
+      msgs `shouldSatisfy` (\case
+                               Right messages -> length messages == 5
+                               Left _ -> False
+                           )
+
+runProducerTestCase :: Bool -> IO (Either KafkaError [Maybe B.ByteString])
+runProducerTestCase enableIdempotence = do
+  execPath <- takeDirectory <$> getExecutablePath
+  let cmd = execPath </> "../idempotent-producer-exe/idempotent-producer-exe"
+  argv <- procToArgv cmd [brokerAddress, kafkaTopic, show messageCount, show enableIdempotence]
+  counter <- newIORef (0 :: Int)
+  void $ flip runReaderT counter $
+    sourceTraceForkExecvFullPathWithSink argv $
+      syscallExitDetailsOnlyConduit .|
+      changeSendmsgSyscallResult .|
+      CL.sinkNull
+  msgs <- consumeMessages
+  putStrLn $ "consumed messages: " <> (show $ toList msgs)
+  pure msgs
+  where
+    toList = \case
+      Right lst -> catMaybes lst
+      Left _ -> []
 
 withKafka :: IO () -> IO ()
 withKafka action =
@@ -64,15 +80,15 @@ withKafka action =
   where
     startKafka = do
       zkContainerId <- runZookeeperContainer
-      putStrLn "    zookeeper started"
+      putStrLn "zookeeper started"
       kafkaContainerId <- runKafkaContainer
-      putStrLn "    kafka broker started"
+      putStrLn "kafka broker started"
       pure (zkContainerId, kafkaContainerId)
     stopKafka (zkContainerId, kafkaContainerId) = do
       destroyContainer kafkaContainerId
-      putStrLn "    kafka broker stopped"
+      putStrLn "kafka broker stopped"
       destroyContainer zkContainerId
-      putStrLn "    zookeeper stopped"
+      putStrLn "zookeeper stopped"
 
 consumerProps :: ConsumerProperties
 consumerProps = brokersList [BrokerAddress $ T.pack brokerAddress]
@@ -98,7 +114,7 @@ processMessages kc = processInternal kc (0 :: Int) []
   where
     processInternal kafkaConsumer continuousErrorsNum messages =
       if continuousErrorsNum > 15
-        then pure messages
+        then pure $ reverse messages
         else do
           pollMessage kafkaConsumer (Timeout 1000) >>= \case
             Left _ ->
@@ -106,24 +122,22 @@ processMessages kc = processInternal kc (0 :: Int) []
             Right (ConsumerRecord{crValue}) ->
               processInternal kafkaConsumer 0 (crValue:messages)
 
-        
-
 type SyscallEvent = (CPid, Either (Syscall, ERRNO) DetailedSyscallExit)
 
-changeSendmsgSyscallResult :: (MonadIO m, MonadReader (TVar Int) m) => ConduitT SyscallEvent SyscallEvent m ()
+changeSendmsgSyscallResult :: (MonadIO m, MonadReader (IORef Int) m)
+                           => ConduitT SyscallEvent SyscallEvent m ()
 changeSendmsgSyscallResult = awaitForever $ \(pid, exitOrErrno) -> do
-        yield (pid, exitOrErrno)
-        case exitOrErrno of
-          Left{} -> pure () -- ignore erroneous syscalls
-          Right exit -> case exit of
-            DetailedSyscallExit_sendmsg
-              SyscallExitDetails_sendmsg
-                { bytesSent } -> do
-                  when (("msg2" `B.isInfixOf` bytesSent)) $ do
-                    counterTVar <- ask
-                    counter <- liftIO $ atomically $ do
-                      modifyTVar' counterTVar (+1)
-                      readTVar counterTVar
-                    when (counter < 3) $
-                      liftIO $ setExitedSyscallResult pid (-110)
-            _ -> pure ()
+  yield (pid, exitOrErrno)
+  case exitOrErrno of
+    Left{} -> pure () -- ignore erroneous syscalls
+    Right exit -> case exit of
+      DetailedSyscallExit_sendmsg SyscallExitDetails_sendmsg
+          { bytesSent } -> do
+            when (("msg2" `B.isInfixOf` bytesSent)) $ do
+              counterRef <- ask
+              liftIO $ modifyIORef' counterRef (+1)
+              counter <- liftIO $ readIORef counterRef
+              when (counter < 3) $ do
+                let timedOutErrno = -110 -- see errno.h
+                liftIO $ setExitedSyscallResult pid timedOutErrno
+      _ -> pure ()
