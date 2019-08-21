@@ -3,10 +3,10 @@ module Kafka.Broker ( runKafkaContainer
                     , runZookeeperContainer
                     , destroyContainer) where
 
-import Control.Monad.Catch
-import Control.Monad.IO.Unlift
-import Data.Text
-import Docker.Client
+import           Control.Monad.Catch
+import           Control.Monad.IO.Unlift
+import           Data.Text
+import           Docker.Client
 
 dockerHttpHandler :: (MonadUnliftIO m, MonadIO m, MonadMask m) => m (HttpHandler m)
 dockerHttpHandler = unixHttpHandler "/var/run/docker.sock"
@@ -44,7 +44,7 @@ runZookeeperContainer = do
         result <- startContainer defaultStartOpts i
         case result of
           Left err -> error $ show err
-          Right _ -> return i
+          Right _  -> return i
 
 runKafkaContainer :: IO ContainerID
 runKafkaContainer = do
@@ -71,7 +71,7 @@ runKafkaContainer = do
           result <- startContainer defaultStartOpts i
           case result of
             Left err -> error $ show err
-            Right _ -> return i
+            Right _  -> return i
 
 setHostname :: Text -> CreateOpts -> CreateOpts
 setHostname hostname' c = c { containerConfig = cc { hostname = Just hostname' } }

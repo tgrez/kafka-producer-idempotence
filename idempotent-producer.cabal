@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 272c843b8d499c2604eee4d2dad5f80bc39967c80bd21d4d57b83c22a5039fdf
+-- hash: 3c4f6d90aa73998b93cb6403b017e4a08487d1eea5807f1092bf8bc715c6857c
 
 name:           idempotent-producer
 version:        0.1.0.0
@@ -27,7 +27,6 @@ source-repository head
 library
   exposed-modules:
       Lib
-      Lib.Consumer
   other-modules:
       Paths_idempotent_producer
   hs-source-dirs:

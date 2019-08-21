@@ -1,5 +1,5 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Lib
     ( executeProducer
@@ -7,11 +7,11 @@ module Lib
 
 import           Control.Exception    (bracket)
 import           Control.Monad        (forM_)
-import           Data.Map.Strict      as M
 import           Data.ByteString      (ByteString)
 import qualified Data.ByteString.UTF8 as BSU
-import           Kafka.Producer
+import           Data.Map.Strict      as M
 import qualified Data.Text            as T
+import           Kafka.Producer
 
 producerProps :: String -> Bool -> ProducerProperties
 producerProps brokerAddress enableIdempotence = brokersList [BrokerAddress $ T.pack brokerAddress]

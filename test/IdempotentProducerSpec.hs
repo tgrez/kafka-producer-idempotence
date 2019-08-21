@@ -1,30 +1,30 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module IdempotentProducerSpec where
 
-import System.Environment
-import System.FilePath.Posix
-import System.Posix.Types
-import System.Hatrace
+import           System.Environment
+import           System.FilePath.Posix
+import           System.Hatrace
+import           System.Posix.Types
 
-import Control.Monad.Reader
-import Control.Exception
+import           Control.Exception
+import           Control.Monad.Reader
 
-import Data.IORef
-import Data.Monoid ((<>))
-import Data.Maybe (catMaybes)
-import qualified Data.Text as T
-import qualified Data.ByteString as B
-import Data.Conduit
-import qualified Data.Conduit.List as CL
-import Test.Hspec
+import qualified Data.ByteString       as B
+import           Data.Conduit
+import qualified Data.Conduit.List     as CL
+import           Data.IORef
+import           Data.Maybe            (catMaybes)
+import           Data.Monoid           ((<>))
+import qualified Data.Text             as T
+import           Test.Hspec
 
-import Kafka.Broker
-import Kafka.Consumer
+import           Kafka.Broker
+import           Kafka.Consumer
 
 brokerAddress :: String
 brokerAddress = "localhost:9092"
