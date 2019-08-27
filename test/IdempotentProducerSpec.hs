@@ -11,6 +11,8 @@ import           System.FilePath.Posix
 import           System.Hatrace
 import           System.Posix.Types
 
+import           Foreign.C.Error
+
 import           Control.Exception
 import           Control.Monad.Reader
 
@@ -67,12 +69,15 @@ runProducerTestCase enableIdempotence = do
       changeSendmsgSyscallResult .|
       CL.sinkNull
   msgs <- consumeMessages
-  putStrLn $ "consumed messages: " <> (show $ toList msgs)
+  printMessages msgs
   pure msgs
-  where
-    toList = \case
-      Right lst -> catMaybes lst
-      Left _ -> []
+
+printMessages :: Either KafkaError [Maybe B.ByteString] -> IO ()
+printMessages msgs = putStrLn $ "consumed messages"
+                                <> (show $ case msgs of
+                                             Right lst -> catMaybes lst
+                                             Left _ -> []
+                                   )
 
 withKafka :: IO () -> IO ()
 withKafka action =
@@ -138,6 +143,6 @@ changeSendmsgSyscallResult = awaitForever $ \(pid, exitOrErrno) -> do
               liftIO $ modifyIORef' counterRef (+1)
               counter <- liftIO $ readIORef counterRef
               when (counter < 3) $ do
-                let timedOutErrno = -110 -- see errno.h
-                liftIO $ setExitedSyscallResult pid timedOutErrno
+                let timedOutErrno = foreignErrnoToERRNO eTIMEDOUT
+                liftIO $ setExitedSyscallResult pid (Left timedOutErrno)
       _ -> pure ()
