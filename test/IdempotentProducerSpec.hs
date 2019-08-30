@@ -73,7 +73,7 @@ runProducerTestCase enableIdempotence = do
   pure msgs
 
 printMessages :: Either KafkaError [Maybe B.ByteString] -> IO ()
-printMessages msgs = putStrLn $ "consumed messages"
+printMessages msgs = putStrLn $ "consumed messages: "
                                 <> (show $ case msgs of
                                              Right lst -> catMaybes lst
                                              Left _ -> []
@@ -140,9 +140,9 @@ changeSendmsgSyscallResult = awaitForever $ \(pid, exitOrErrno) -> do
           { bytesSent } -> do
             when (("msg2" `B.isInfixOf` bytesSent)) $ do
               counterRef <- ask
-              liftIO $ modifyIORef' counterRef (+1)
               counter <- liftIO $ readIORef counterRef
-              when (counter < 3) $ do
+              when (counter < 2) $ liftIO $ do
                 let timedOutErrno = foreignErrnoToERRNO eTIMEDOUT
-                liftIO $ setExitedSyscallResult pid (Left timedOutErrno)
+                setExitedSyscallResult pid (Left timedOutErrno)
+                modifyIORef' counterRef (+1)
       _ -> pure ()
