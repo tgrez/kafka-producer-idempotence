@@ -10,3 +10,4 @@ to run you will need:
 * current user added to the docker group
 * Haskell's Stack installed
 * librdkafka version 1.0 installed (use Confluent repository to get the latest version)
+* git installed
